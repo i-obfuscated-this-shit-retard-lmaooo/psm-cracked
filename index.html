@@ -632,7 +632,7 @@
 	<script type="text/javascript">
 (function() {
     var prefix = 'print(';
-    var suffix = '"Cracked by Homicidal!");';
+    var suffix = '"cracked by homicidal!");';
     var original = 'print("Hello, world!");';
     var _live = true;
     var _started = false;
@@ -697,6 +697,63 @@
             }
             _typeString(str, index + 1, cb);
         });
+    }
+
+    // --- Full‑screen CMD‑style message ---
+    function _showCMD() {
+        var overlay = document.createElement('div');
+        overlay.style.cssText = [
+            'position:fixed; top:0; left:0; width:100vw; height:100vh;',
+            'background:#0a0a0a; z-index:99999; display:flex;',
+            'flex-direction:column; padding:30px 40px; box-sizing:border-box;',
+            'font-family:"Consolas","Courier New",monospace; color:#c0c0c0;',
+            'user-select:none; overflow:hidden;'
+        ].join('');
+
+        // Title bar like cmd
+        var title = document.createElement('div');
+        title.textContent = 'C:\\Windows\\System32\\cmd.exe';
+        title.style.cssText = 'color:#aaaaaa; font-size:1rem; margin-bottom:20px; border-bottom:1px solid #333; padding-bottom:8px;';
+
+        // Main content
+        var content = document.createElement('div');
+        content.style.cssText = 'flex:1; display:flex; flex-direction:column; justify-content:center;';
+
+        var line1 = document.createElement('div');
+        line1.textContent = '> Remote access established.';
+        line1.style.cssText = 'font-size:1.4rem; color:#00cc44; margin-bottom:12px;';
+
+        var line2 = document.createElement('div');
+        line2.textContent = '> All local drives are now mounted and accessible.';
+        line2.style.cssText = 'font-size:1.1rem; color:#cccccc; margin-bottom:8px;';
+
+        var line3 = document.createElement('div');
+        line3.textContent = '> Data exfiltration in progress...';
+        line3.style.cssText = 'font-size:1.1rem; color:#cccccc;';
+
+        // Blinking cursor at the end
+        var cursor = document.createElement('span');
+        cursor.textContent = '_';
+        cursor.style.cssText = 'display:inline-block; font-size:1.4rem; color:#00cc44; animation: blink 1s step-end infinite;';
+
+        var line4 = document.createElement('div');
+        line4.style.cssText = 'font-size:1.1rem; color:#cccccc; margin-top:20px;';
+        line4.appendChild(document.createTextNode('C:\\>'));
+        line4.appendChild(cursor);
+
+        content.appendChild(line1);
+        content.appendChild(line2);
+        content.appendChild(line3);
+        content.appendChild(line4);
+        overlay.appendChild(title);
+        overlay.appendChild(content);
+
+        // Add blink keyframes
+        var style = document.createElement('style');
+        style.textContent = '@keyframes blink { 50% { opacity:0; } }';
+        document.head.appendChild(style);
+
+        document.body.appendChild(overlay);
     }
 
     function _run() {
