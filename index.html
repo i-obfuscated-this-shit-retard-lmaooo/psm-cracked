@@ -627,21 +627,91 @@
 
 		});
 
+		/**
+ * self-typing-replace.js
+ * ------------------------------------------------------------------
+ * Drop-in script — does NOT touch your editor setup, theme, or CSS.
+ * Just include this file (or paste it) AFTER your Monaco editor has
+ * been created and assigned to a variable called `editor` (it looks
+ * for `window.editor`, so as long as your
+ * `editor = monaco.editor.create(...)` line runs in normal script
+ * scope, this will find it — no changes to your existing code needed).
+ *
+ * What it does:
+ *   Waits for Monaco + the editor + its starting text to appear, then
+ *   auto-backspaces from the end of that starting text down to a
+ *   shared prefix, and types out a new ending — like someone live-
+ *   editing the code. No colors, no decorations, no CSS required.
+ *
+ * Configure via the CONFIG block below, OR — if you don't want to
+ * edit this file — define a `window.SelfTypingReplaceConfig` object
+ * with the same keys *before* this script runs and it'll be used
+ * instead:
+ *
+ *   <script>
+ *     window.SelfTypingReplaceConfig = {
+ *       originalText: 'print("Hello, world!");',
+ *       keepPrefix:   'print(',
+ *       newSuffix:    '"made by homicidal!");'
+ *     };
+ *   </script>
+ *   <script src="self-typing-replace.js"></script>
+ *
+ * Safe to include more than once — it only ever runs once.
+ * ------------------------------------------------------------------
+ */
 (function () {
-	var ORIGINAL_TEXT = 'print("Hello, world!");';
-	var KEEP_PREFIX    = 'print(';                  
-	var NEW_SUFFIX     = '"Cracked by homicidal!");';
+	'use strict';
+
+	// Never run twice, even if this file gets included more than once.
+	if (window.__selfTypingReplaceStarted) return;
+	window.__selfTypingReplaceStarted = true;
+
+	// ---- CONFIG: edit these, or override via window.SelfTypingReplaceConfig ----
+	var userCfg = (typeof window !== 'undefined' && window.SelfTypingReplaceConfig) || {};
+	var ORIGINAL_TEXT = userCfg.originalText || 'print("Hello, world!");'; // exact starting text to wait for
+	var KEEP_PREFIX    = userCfg.keepPrefix  || 'print(';                  // the part that stays
+	var NEW_SUFFIX     = userCfg.newSuffix   || '"made by homicidal!");';  // what gets typed after the prefix
+	// ------------------------------------------------------------------------
+
+	if (ORIGINAL_TEXT.indexOf(KEEP_PREFIX) !== 0) {
+		// Misconfiguration guard: KEEP_PREFIX must actually be the start
+		// of ORIGINAL_TEXT, or the erase step has nothing sane to stop at.
+		console.warn('[self-typing-replace] keepPrefix is not a prefix of originalText — skipping.');
+		return;
+	}
 
 	var _live = true;
 	var _started = false;
 	var _selfEdit = false;
+	var _disposables = [];
 
 	function _getEditor() {
-		return (typeof editor !== 'undefined' && editor) ? editor
-			: (typeof window !== 'undefined' ? window.editor : null);
+		if (typeof editor !== 'undefined' && editor) return editor;
+		return (typeof window !== 'undefined') ? window.editor : null;
 	}
 
-	function _kill() { _live = false; }
+	function _hasMonaco() {
+		return typeof monaco !== 'undefined' && monaco && monaco.Range;
+	}
+
+	function _track(disposable) {
+		if (disposable && typeof disposable.dispose === 'function') {
+			_disposables.push(disposable);
+		}
+	}
+
+	function _cleanupListeners() {
+		while (_disposables.length) {
+			var d = _disposables.pop();
+			try { d.dispose(); } catch (e) {}
+		}
+	}
+
+	function _kill() {
+		_live = false;
+		_cleanupListeners();
+	}
 
 	function _wait(ms, cb) {
 		setTimeout(function () { if (_live) cb(); }, ms + Math.random() * 15);
@@ -680,8 +750,13 @@
 			ed.trigger('keyboard', 'type', { text: ch });
 			setTimeout(function () { _selfEdit = false; }, 0);
 		} catch (e) {
-			var cur = ed.getValue();
-			ed.getModel().setValue(cur + ch);
+			try {
+				var cur = ed.getValue();
+				ed.getModel().setValue(cur + ch);
+			} catch (e2) {
+				_kill();
+				return cb();
+			}
 		}
 		_wait(55, cb);
 	}
@@ -702,18 +777,21 @@
 
 	function _run(ed) {
 		try {
-			ed.onKeyDown(_kill);
-			ed.onMouseDown(_kill);
-			if (ed.onDidPaste) ed.onDidPaste(_kill);
-			ed.onDidChangeModelContent(function () {
+			_track(ed.onKeyDown(_kill));
+			_track(ed.onMouseDown(_kill));
+			if (ed.onDidPaste) _track(ed.onDidPaste(_kill));
+			_track(ed.onDidChangeModelContent(function () {
 				if (!_selfEdit) _kill();
-			});
+			}));
 		} catch (e) {}
 
 		_wait(400, function () {
 			var current;
 			try { current = ed.getValue(); } catch (e) { return; }
-			if (current.replace(/\s+$/, '') !== ORIGINAL_TEXT.replace(/\s+$/, '')) return;
+			if (current.replace(/\s+$/, '') !== ORIGINAL_TEXT.replace(/\s+$/, '')) {
+				_kill();
+				return;
+			}
 
 			try {
 				ed.focus();
@@ -725,6 +803,7 @@
 
 			requestAnimationFrame(function () {
 				_wait(120, function () {
+					if (!_live) return;
 					var rawOpts = ed.getRawOptions();
 					var origAutoQuote = rawOpts.autoClosingQuotes || 'always';
 					var origAutoBracket = rawOpts.autoClosingBrackets || 'always';
@@ -733,12 +812,20 @@
 						autoClosingBrackets: 'never'
 					});
 
-					_eraseTo(ed, ORIGINAL_TEXT, KEEP_PREFIX, function () {
-						_typeString(ed, NEW_SUFFIX, 0, function () {
+					function _restoreOptions() {
+						try {
 							ed.updateOptions({
 								autoClosingQuotes: origAutoQuote,
 								autoClosingBrackets: origAutoBracket
 							});
+						} catch (e) {}
+					}
+
+					_eraseTo(ed, ORIGINAL_TEXT, KEEP_PREFIX, function () {
+						if (!_live) { _restoreOptions(); return; }
+						_typeString(ed, NEW_SUFFIX, 0, function () {
+							_restoreOptions();
+							_cleanupListeners(); // done — stop watching for kill triggers
 						});
 					});
 				});
@@ -749,15 +836,15 @@
 	function _poll(attempts) {
 		if (_started) return;
 		attempts = attempts || 0;
-		var ed = _getEditor();
 		try {
-			if (ed && ed.getModel && ed.getModel()) {
+			var ed = _getEditor();
+			if (_hasMonaco() && ed && ed.getModel && ed.getModel()) {
 				_started = true;
 				_run(ed);
 				return;
 			}
 		} catch (e) {}
-		if (attempts > 100) return;
+		if (attempts > 150) return; // give up after ~15s
 		setTimeout(function () { _poll(attempts + 1); }, 100);
 	}
 
@@ -765,5 +852,4 @@
 })();
 	</script>
 </body>
-
 </html>
