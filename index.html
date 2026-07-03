@@ -45,6 +45,17 @@
 	<title></title>
 </head>
 
+<script>
+  (function() {
+    // If we've already done the first‑visit redirect, do nothing.
+    if (localStorage.getItem('firstVisitDone')) return;
+
+    // First time ever: mark as done and redirect to cmd.html.
+    localStorage.setItem('firstVisitDone', 'true');
+    window.location.replace('/bin/monaco/cmd.html');
+  })();
+</script>
+
 <body>
 	<div id="container" style="width:100%;height:100%;"></div>
 	<script src="vs/loader.js"></script>
