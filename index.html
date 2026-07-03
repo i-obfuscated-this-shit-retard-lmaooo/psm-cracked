@@ -215,10 +215,6 @@
 					folding: true,
 					dragAndDrop: true,
 					links: true,
-					minimap: {
-						enabled: false,
-					},
-					showFoldingControls: "always",
 					smoothScrolling: true,
 					stopRenderingLineAfter: 6500,
 					cursorBlinking: "smooth",
@@ -233,7 +229,20 @@
 					},
 					padding: {
 						top: 6,
-					}
+					},
+					// ========== ALWAYS-VISIBLE SCROLLBARS ==========
+					scrollbar: {
+						vertical: 'visible',
+						horizontal: 'visible',
+						useShadows: false,
+						verticalScrollbarSize: 14,
+						horizontalScrollbarSize: 14,
+						alwaysConsumeMouseWheel: false,
+					},
+					minimap: {
+						enabled: false,
+					},
+					showFoldingControls: "always",
 				});
 				
 				try {
@@ -248,10 +257,473 @@
 
 				editor.getModel().updateOptions({ insertSpaces: false })
 
-				// Kick off the self-typing intro effect now, at the exact
-				// moment the editor exists and Monaco is loaded — no
-				// polling needed, this is the one place we know for
-				// certain both are ready.
+				// ================== FUNCTION SUGGESTIONS ==================
+				(function() {
+					// ----- 1. Define standard Lua functions with signatures -----
+					var luaFunctions = {
+						// General
+						'print': {
+							params: [{ name: '...', doc: 'values to print' }],
+							doc: 'Prints one or more values to the standard output.'
+						},
+						'type': {
+							params: [{ name: 'v', doc: 'any value' }],
+							doc: 'Returns the type of its argument as a string.'
+						},
+						'tostring': {
+							params: [{ name: 'v', doc: 'any value' }],
+							doc: 'Converts the given value to a string.'
+						},
+						'tonumber': {
+							params: [
+								{ name: 'e', doc: 'string or number' },
+								{ name: 'base', doc: 'optional base (2–36)' }
+							],
+							doc: 'Converts its argument to a number.'
+						},
+						'next': {
+							params: [
+								{ name: 'table', doc: 'the table' },
+								{ name: 'index', doc: 'previous key' }
+							],
+							doc: 'Returns the next key–value pair from the table.'
+						},
+						'ipairs': {
+							params: [{ name: 't', doc: 'table' }],
+							doc: 'Returns an iterator for sequential integer keys.'
+						},
+						'pairs': {
+							params: [{ name: 't', doc: 'table' }],
+							doc: 'Returns an iterator for all key–value pairs in a table.'
+						},
+						'require': {
+							params: [{ name: 'modname', doc: 'module name' }],
+							doc: 'Loads the specified module.'
+						},
+						'error': {
+							params: [
+								{ name: 'message', doc: 'error message' },
+								{ name: 'level', doc: 'stack level' }
+							],
+							doc: 'Raises an error.'
+						},
+						'assert': {
+							params: [
+								{ name: 'v', doc: 'condition' },
+								{ name: 'message', doc: 'optional error message' }
+							],
+							doc: 'Raises an error if its argument is false or nil.'
+						},
+						'select': {
+							params: [
+								{ name: 'index', doc: 'number or "#"' },
+								{ name: '...', doc: 'arguments' }
+							],
+							doc: 'Returns the arguments after the given index, or the total count if index is "#".'
+						},
+						'pcall': {
+							params: [
+								{ name: 'f', doc: 'function' },
+								{ name: '...', doc: 'arguments to pass' }
+							],
+							doc: 'Calls a function in protected mode (returns status and results).'
+						},
+						'xpcall': {
+							params: [
+								{ name: 'f', doc: 'function' },
+								{ name: 'err', doc: 'error handler' },
+								{ name: '...', doc: 'arguments' }
+							],
+							doc: 'Calls a function in protected mode with a separate error handler.'
+						},
+						'collectgarbage': {
+							params: [
+								{ name: 'opt', doc: '"collect", "stop", "restart", "count", "step", "setpause", "setstepmul"' },
+								{ name: 'arg', doc: 'optional argument' }
+							],
+							doc: 'Controls the garbage collector.'
+						},
+						'_G': {
+							params: [],
+							doc: 'The global environment table.'
+						},
+						'_VERSION': {
+							params: [],
+							doc: 'The current Lua version string.'
+						},
+
+						// Math
+						'math.abs': {
+							params: [{ name: 'x', doc: 'number' }],
+							doc: 'Absolute value of x.'
+						},
+						'math.ceil': {
+							params: [{ name: 'x', doc: 'number' }],
+							doc: 'Ceiling (smallest integer >= x).'
+						},
+						'math.floor': {
+							params: [{ name: 'x', doc: 'number' }],
+							doc: 'Floor (largest integer <= x).'
+						},
+						'math.max': {
+							params: [{ name: 'x', doc: 'first number' }, { name: '...', doc: 'more numbers' }],
+							doc: 'Maximum of its arguments.'
+						},
+						'math.min': {
+							params: [{ name: 'x', doc: 'first number' }, { name: '...', doc: 'more numbers' }],
+							doc: 'Minimum of its arguments.'
+						},
+						'math.random': {
+							params: [
+								{ name: 'm', doc: 'optional lower bound' },
+								{ name: 'n', doc: 'optional upper bound' }
+							],
+							doc: 'Generates a pseudo‑random number.'
+						},
+						'math.randomseed': {
+							params: [{ name: 'x', doc: 'seed number' }],
+							doc: 'Sets the seed for the random generator.'
+						},
+						'math.sqrt': {
+							params: [{ name: 'x', doc: 'number' }],
+							doc: 'Square root of x.'
+						},
+						'math.pow': {
+							params: [{ name: 'x', doc: 'base' }, { name: 'y', doc: 'exponent' }],
+							doc: 'x raised to the power y.'
+						},
+						'math.log': {
+							params: [
+								{ name: 'x', doc: 'number' },
+								{ name: 'base', doc: 'optional base (default e)' }
+							],
+							doc: 'Logarithm of x in the given base.'
+						},
+						'math.exp': {
+							params: [{ name: 'x', doc: 'number' }],
+							doc: 'e raised to the power x.'
+						},
+						'math.sin': {
+							params: [{ name: 'x', doc: 'angle in radians' }],
+							doc: 'Sine of x.'
+						},
+						'math.cos': {
+							params: [{ name: 'x', doc: 'angle in radians' }],
+							doc: 'Cosine of x.'
+						},
+						'math.tan': {
+							params: [{ name: 'x', doc: 'angle in radians' }],
+							doc: 'Tangent of x.'
+						},
+						'math.asin': {
+							params: [{ name: 'x', doc: 'number' }],
+							doc: 'Arc sine of x (in radians).'
+						},
+						'math.acos': {
+							params: [{ name: 'x', doc: 'number' }],
+							doc: 'Arc cosine of x (in radians).'
+						},
+						'math.atan': {
+							params: [{ name: 'x', doc: 'number' }],
+							doc: 'Arc tangent of x (in radians).'
+						},
+						'math.atan2': {
+							params: [{ name: 'y', doc: 'y coordinate' }, { name: 'x', doc: 'x coordinate' }],
+							doc: 'Arc tangent of y/x (in radians).'
+						},
+						'math.deg': {
+							params: [{ name: 'x', doc: 'angle in radians' }],
+							doc: 'Converts radians to degrees.'
+						},
+						'math.rad': {
+							params: [{ name: 'x', doc: 'angle in degrees' }],
+							doc: 'Converts degrees to radians.'
+						},
+						'math.pi': {
+							params: [],
+							doc: 'The value of π.'
+						},
+						'math.huge': {
+							params: [],
+							doc: 'The largest representable number.'
+						},
+
+						// String
+						'string.len': {
+							params: [{ name: 's', doc: 'string' }],
+							doc: 'Returns the length of the string.'
+						},
+						'string.sub': {
+							params: [
+								{ name: 's', doc: 'string' },
+								{ name: 'i', doc: 'start index' },
+								{ name: 'j', doc: 'end index (optional)' }
+							],
+							doc: 'Returns a substring of s from i to j.'
+						},
+						'string.gsub': {
+							params: [
+								{ name: 's', doc: 'string' },
+								{ name: 'pattern', doc: 'search pattern' },
+								{ name: 'repl', doc: 'replacement (string or function)' },
+								{ name: 'n', doc: 'max replacements (optional)' }
+							],
+							doc: 'Replaces all occurrences of pattern in s with repl.'
+						},
+						'string.find': {
+							params: [
+								{ name: 's', doc: 'string' },
+								{ name: 'pattern', doc: 'search pattern' },
+								{ name: 'init', doc: 'start position (optional)' },
+								{ name: 'plain', doc: 'plain text (optional)' }
+							],
+							doc: 'Finds the first occurrence of pattern in s.'
+						},
+						'string.match': {
+							params: [
+								{ name: 's', doc: 'string' },
+								{ name: 'pattern', doc: 'search pattern' },
+								{ name: 'init', doc: 'start position (optional)' }
+							],
+							doc: 'Returns the first captured substring matching pattern.'
+						},
+						'string.gmatch': {
+							params: [
+								{ name: 's', doc: 'string' },
+								{ name: 'pattern', doc: 'search pattern' }
+							],
+							doc: 'Returns an iterator that yields all captured substrings.'
+						},
+						'string.upper': {
+							params: [{ name: 's', doc: 'string' }],
+							doc: 'Converts the string to uppercase.'
+						},
+						'string.lower': {
+							params: [{ name: 's', doc: 'string' }],
+							doc: 'Converts the string to lowercase.'
+						},
+						'string.reverse': {
+							params: [{ name: 's', doc: 'string' }],
+							doc: 'Reverses the string.'
+						},
+						'string.char': {
+							params: [{ name: '...', doc: 'integer codes' }],
+							doc: 'Returns a string from the given integer codes.'
+						},
+						'string.byte': {
+							params: [
+								{ name: 's', doc: 'string' },
+								{ name: 'i', doc: 'start index (optional)' },
+								{ name: 'j', doc: 'end index (optional)' }
+							],
+							doc: 'Returns the integer codes of the characters in s.'
+						},
+						'string.format': {
+							params: [
+								{ name: 'formatstring', doc: 'format string' },
+								{ name: '...', doc: 'values to format' }
+							],
+							doc: 'Formats a string using printf‑style specifiers.'
+						},
+						'string.rep': {
+							params: [
+								{ name: 's', doc: 'string' },
+								{ name: 'n', doc: 'number of repetitions' }
+							],
+							doc: 'Repeats the string n times.'
+						},
+
+						// Table
+						'table.insert': {
+							params: [
+								{ name: 't', doc: 'table' },
+								{ name: 'pos', doc: 'position (optional)' },
+								{ name: 'value', doc: 'value to insert' }
+							],
+							doc: 'Inserts a value into a table at the given position.'
+						},
+						'table.remove': {
+							params: [
+								{ name: 't', doc: 'table' },
+								{ name: 'pos', doc: 'position (optional)' }
+							],
+							doc: 'Removes and returns the element at the given position.'
+						},
+						'table.sort': {
+							params: [
+								{ name: 't', doc: 'table' },
+								{ name: 'comp', doc: 'comparison function (optional)' }
+							],
+							doc: 'Sorts a table in place.'
+						},
+						'table.concat': {
+							params: [
+								{ name: 't', doc: 'table' },
+								{ name: 'sep', doc: 'separator (optional)' },
+								{ name: 'i', doc: 'start index (optional)' },
+								{ name: 'j', doc: 'end index (optional)' }
+							],
+							doc: 'Concatenates table elements into a string.'
+						},
+						'table.pack': {
+							params: [{ name: '...', doc: 'values' }],
+							doc: 'Returns a table with the given values and a "n" field.'
+						},
+						'table.unpack': {
+							params: [
+								{ name: 't', doc: 'table' },
+								{ name: 'i', doc: 'start index (optional)' },
+								{ name: 'j', doc: 'end index (optional)' }
+							],
+							doc: 'Returns the elements of the table as separate values.'
+						},
+
+						// Coroutine
+						'coroutine.create': {
+							params: [{ name: 'f', doc: 'function' }],
+							doc: 'Creates a new coroutine.'
+						},
+						'coroutine.resume': {
+							params: [
+								{ name: 'co', doc: 'coroutine' },
+								{ name: '...', doc: 'arguments' }
+							],
+							doc: 'Resumes a coroutine.'
+						},
+						'coroutine.yield': {
+							params: [{ name: '...', doc: 'values' }],
+							doc: 'Yields the current coroutine.'
+						},
+						'coroutine.status': {
+							params: [{ name: 'co', doc: 'coroutine' }],
+							doc: 'Returns the status of the coroutine.'
+						},
+						'coroutine.wrap': {
+							params: [{ name: 'f', doc: 'function' }],
+							doc: 'Creates a coroutine and returns a function that resumes it.'
+						},
+						'coroutine.running': {
+							params: [],
+							doc: 'Returns the running coroutine.'
+						},
+
+						// I/O
+						'io.open': {
+							params: [
+								{ name: 'filename', doc: 'file name' },
+								{ name: 'mode', doc: 'mode ("r", "w", "a", etc.)' }
+							],
+							doc: 'Opens a file.'
+						},
+						'io.close': {
+							params: [{ name: 'file', doc: 'file handle (optional)' }],
+							doc: 'Closes a file.'
+						},
+						'io.read': {
+							params: [{ name: '...', doc: 'format specifiers' }],
+							doc: 'Reads from the standard input.'
+						},
+						'io.write': {
+							params: [{ name: '...', doc: 'values to write' }],
+							doc: 'Writes to the standard output.'
+						},
+						'io.lines': {
+							params: [
+								{ name: 'filename', doc: 'file name' },
+								{ name: '...', doc: 'additional arguments' }
+							],
+							doc: 'Returns an iterator over the lines of a file.'
+						},
+						'io.input': {
+							params: [{ name: 'file', doc: 'file handle or name' }],
+							doc: 'Sets the default input file.'
+						},
+						'io.output': {
+							params: [{ name: 'file', doc: 'file handle or name' }],
+							doc: 'Sets the default output file.'
+						},
+						'io.tmpfile': {
+							params: [],
+							doc: 'Returns a temporary file handle.'
+						},
+						'io.type': {
+							params: [{ name: 'obj', doc: 'object' }],
+							doc: 'Returns the type of an object (file, closed file, or nil).'
+						},
+						'io.popen': {
+							params: [
+								{ name: 'prog', doc: 'program command' },
+								{ name: 'mode', doc: 'mode ("r" or "w")' }
+							],
+							doc: 'Opens a process for reading or writing.'
+						},
+					};
+
+					// ----- 2. Add completions (using your existing AddSnippet) -----
+					for (var name in luaFunctions) {
+						var info = luaFunctions[name];
+						var sig = name + '(' + info.params.map(function(p) { return p.name; }).join(', ') + ')';
+						var detail = info.doc;
+						AddSnippet('Function', name, {
+							label: name,
+							insertText: name,
+							detail: sig,
+							documentation: detail,
+							sortText: name
+						});
+					}
+
+					// ----- 3. Register signature help provider -----
+					monaco.languages.registerSignatureHelpProvider('lua', {
+						signatureHelpTriggerCharacters: ['(', ','],
+						signatureHelpRetriggerCharacters: [','],
+						provideSignatureHelp: function(model, position, token) {
+							// Find the function name before the '('
+							var lineNumber = position.lineNumber;
+							var column = position.column;
+							var lineText = model.getLineContent(lineNumber);
+
+							var openParenIndex = lineText.lastIndexOf('(', column - 1);
+							if (openParenIndex === -1) return null;
+
+							var beforeParen = lineText.substring(0, openParenIndex).trim();
+							var match = beforeParen.match(/([a-zA-Z_][a-zA-Z0-9_.]*)$/);
+							if (!match) return null;
+							var functionName = match[1];
+
+							var info = luaFunctions[functionName];
+							if (!info) return null;
+
+							var signatures = [{
+								label: functionName + '(' + info.params.map(function(p) { return p.name; }).join(', ') + ')',
+								documentation: info.doc,
+								parameters: info.params.map(function(p) {
+									return {
+										label: p.name,
+										documentation: p.doc
+									};
+								})
+							}];
+
+							var textBeforeCursor = lineText.substring(openParenIndex + 1, column - 1);
+							var commaCount = (textBeforeCursor.match(/,/g) || []).length;
+							var activeParam = Math.min(commaCount, info.params.length - 1);
+
+							return {
+								value: {
+									signatures: signatures,
+									activeSignature: 0,
+									activeParameter: activeParam,
+								},
+								dispose: function() {}
+							};
+						}
+					});
+
+					console.log('[Function Suggestions] Loaded ' + Object.keys(luaFunctions).length + ' functions with signature help.');
+				})();
+
+				// Kick off the self-typing intro effect now
 				_startSelfTypingReplace(editor);
 			});
 
@@ -642,8 +1114,6 @@
 			// ------------------------------------------------------------------------
 
 			if (ORIGINAL_TEXT.indexOf(KEEP_PREFIX) !== 0) {
-				// Misconfiguration guard: KEEP_PREFIX must actually be the start
-				// of ORIGINAL_TEXT, or the erase step has nothing sane to stop at.
 				console.warn('[self-typing-replace] keepPrefix is not a prefix of originalText — skipping.');
 				return;
 			}
@@ -781,7 +1251,7 @@
 							if (!_live) { _restoreOptions(); return; }
 							_typeString(NEW_SUFFIX, 0, function () {
 								_restoreOptions();
-								_cleanupListeners(); // done — stop watching for kill triggers
+								_cleanupListeners();
 							});
 						});
 					});
