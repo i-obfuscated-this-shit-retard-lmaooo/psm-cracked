@@ -1,12 +1,10 @@
 <!DOCTYPE html>
 
-<html lang="en" xmlns="http://www.w3.org/1999/xhtml">
-
+<html lang="en">
 <head>
-	<style type="text/css">
-		html,
-		body {
-			background-color: #222222;
+	<style>
+		html, body {
+			background-color: #0a0a0a;
 			width: 100%;
 			height: 100%;
 			margin: 0;
@@ -17,11 +15,78 @@
 		}
 
 		#container {
+			width: 100%;
+			height: 100%;
+			position: relative;
+			box-sizing: border-box;
 			background-size: cover;
 			background-repeat: no-repeat;
 			background-position: center;
 		}
 
+		/* The gradient wave for the text – applied via decoration.
+		   Instead of a background-clip:text gradient trick (which can
+		   silently fail to render in older/embedded browser engines),
+		   each character gets its own tiny color-pulse animation with a
+		   staggered delay. Animating the plain `color` property is
+		   about as universally supported as CSS gets, so this is
+		   guaranteed to render. Staggering the delays right-to-left
+		   makes the pulses ripple across the word like a wave, and each
+		   character cycles through one of four accent hues so the wave
+		   itself reads as a moving rainbow rather than a single flashing
+		   color. No glow/blur, no background-clip, no currentColor. */
+		@keyframes cwCyan   { 0% { color: #9ECE6A; } 45% { color: #22e0ff; } 100% { color: #9ECE6A; } }
+		@keyframes cwPink   { 0% { color: #9ECE6A; } 45% { color: #ff2d95; } 100% { color: #9ECE6A; } }
+		@keyframes cwGold   { 0% { color: #9ECE6A; } 45% { color: #ffd166; } 100% { color: #9ECE6A; } }
+		@keyframes cwViolet { 0% { color: #9ECE6A; } 45% { color: #b26bff; } 100% { color: #9ECE6A; } }
+
+		.wv-c0, .wv-c1, .wv-c2, .wv-c3 {
+			animation-duration: 480ms !important;
+			animation-timing-function: ease-in-out !important;
+			animation-iteration-count: 1 !important;
+			animation-fill-mode: both !important;
+			transition: none !important;
+		}
+		.wv-c0 { animation-name: cwCyan !important; }
+		.wv-c1 { animation-name: cwPink !important; }
+		.wv-c2 { animation-name: cwGold !important; }
+		.wv-c3 { animation-name: cwViolet !important; }
+
+		/* Per-character stagger: index 0 fires first. The wave is built
+		   by driving the rightmost character with delay index 0 and
+		   working leftward, so the pulses visibly travel right to left. */
+		.wv-d0 { animation-delay: 0ms !important; }
+		.wv-d1 { animation-delay: 40ms !important; }
+		.wv-d2 { animation-delay: 80ms !important; }
+		.wv-d3 { animation-delay: 120ms !important; }
+		.wv-d4 { animation-delay: 160ms !important; }
+		.wv-d5 { animation-delay: 200ms !important; }
+		.wv-d6 { animation-delay: 240ms !important; }
+		.wv-d7 { animation-delay: 280ms !important; }
+		.wv-d8 { animation-delay: 320ms !important; }
+		.wv-d9 { animation-delay: 360ms !important; }
+		.wv-d10 { animation-delay: 400ms !important; }
+		.wv-d11 { animation-delay: 440ms !important; }
+		.wv-d12 { animation-delay: 480ms !important; }
+		.wv-d13 { animation-delay: 520ms !important; }
+		.wv-d14 { animation-delay: 560ms !important; }
+		.wv-d15 { animation-delay: 600ms !important; }
+		.wv-d16 { animation-delay: 640ms !important; }
+		.wv-d17 { animation-delay: 680ms !important; }
+		.wv-d18 { animation-delay: 720ms !important; }
+		.wv-d19 { animation-delay: 760ms !important; }
+		.wv-d20 { animation-delay: 800ms !important; }
+		.wv-d21 { animation-delay: 840ms !important; }
+		.wv-d22 { animation-delay: 880ms !important; }
+		.wv-d23 { animation-delay: 920ms !important; }
+		.wv-d24 { animation-delay: 960ms !important; }
+		.wv-d25 { animation-delay: 1000ms !important; }
+		.wv-d26 { animation-delay: 1040ms !important; }
+		.wv-d27 { animation-delay: 1080ms !important; }
+		.wv-d28 { animation-delay: 1120ms !important; }
+		.wv-d29 { animation-delay: 1160ms !important; }
+
+		/* Transparent editor when background image is active */
 		body.editor-has-image .monaco-editor,
 		body.editor-has-image .monaco-editor .margin,
 		body.editor-has-image .monaco-editor-background,
@@ -43,55 +108,71 @@
 	<meta charset="utf-8" />
 	<title></title>
 </head>
-
 <body>
 	<div id="container" style="width:100%;height:100%;"></div>
 	<script src="vs/loader.js"></script>
-	<script type="text/javascript">
+	<script>
 		require.config({
-			paths: {
-				'vs': 'vs',
-			}
+			paths: { 'vs': 'vs' }
 		});
 
-		// API
-		var GetText;
-		var SetText;
-		var SetTheme;
-		var SetScroll;
-		var ShowErr;
-		var Refresh;
+		var GetText, SetText, SetTheme, SetScroll, ShowErr, Refresh;
+		var SwitchMinimap, SwitchReadonly, SwitchRenderWhitespace, SwitchLinks,
+			SwitchLineHeight, SwitchFontSize, SwitchFolding, SwitchAutoIndent,
+			SwitchFontFamily, SwitchFontLigatures, AddIntellisense;
+		var editor, Proposals = [];
 
-		// Enablers
-		var SwitchMinimap;
-		var SwitchReadonly;
-		var SwitchRenderWhitespace;
-		var SwitchLinks;
-		var SwitchLineHeight;
-		var SwitchFontSize;
-		var SwitchFolding;
-		var SwitchAutoIndent;
-		var SwitchFontFamily;
-		var SwitchFontLigatures;
-		var AddIntellisense;
+		// Function to wave-highlight "made by homicidal!" one character at
+		// a time, right to left, using simple per-character color pulses
+		// (guaranteed to render — no background-clip / gradient tricks).
+		function highlightCrackedText() {
+			var model = editor.getModel();
+			if (!model) return;
+			var searchString = '"made by homicidal!"';
+			var matches = model.findMatches(searchString, false, false, false, null, false);
+			if (matches.length === 0) return;
 
-		// Variables
-		var editor;
-		var Proposals = [];
+			var range = matches[0].range;
+			var line = range.startLineNumber;
+			var startCol = range.startColumn;
+			var len = searchString.length;
+			var maxDelayIndex = 29; // matches the highest .wv-d class defined in CSS
+
+			var newDecorations = [];
+			for (var i = 0; i < len; i++) {
+				var charRange = new monaco.Range(line, startCol + i, line, startCol + i + 1);
+				// Rightmost character gets delay index 0 (fires first);
+				// moving left increases the delay, so the pulse visibly
+				// travels from right to left across the word.
+				var delayIndex = Math.min(len - 1 - i, maxDelayIndex);
+				var colorClass = 'wv-c' + (i % 4);
+				newDecorations.push({
+					range: charRange,
+					options: {
+						inlineClassName: colorClass + ' wv-d' + delayIndex
+					}
+				});
+			}
+
+			var decorations = editor.deltaDecorations([], newDecorations);
+			// Clean up once every pulse (last one starts at ~1160ms and
+			// runs for 480ms) has finished playing.
+			setTimeout(function() {
+				editor.deltaDecorations(decorations, []);
+			}, 1750);
+		}
 
 		require(['vs/editor/editor.main'], function () {
 			function getDependencyProposals() {
 				let newProposals = [];
 				for (let index = 0; index < Proposals.length; index++) {
 					const element = Proposals[index];
-					let newElement = {}
+					let newElement = {};
 					for (const key in element) {
-						if (key == "__children__") {
-							continue;
-						};
+						if (key == "__children__") continue;
 						newElement[key] = element[key];
 					}
-					newProposals.push(newElement)
+					newProposals.push(newElement);
 				}
 				return newProposals;
 			}
@@ -131,57 +212,28 @@
 					{ token: 'variable.other.constant', foreground: '#FF9E64' },
 					{ token: 'variable.property', foreground: '#7DCFFF' },
 					{ token: 'variable.object.property', foreground: '#73DACA' },
-
 					{ token: 'keyword', foreground: '#BB9AF7' },
 					{ token: 'keyword.local', foreground: '#997BD6', fontStyle: 'italic' },
 					{ token: 'keyword.operator', foreground: '#89DDFF' },
 					{ token: 'keyword.operator.type.annotation', foreground: '#9ABDF5' },
 					{ token: 'keyword.operator.typedef.annotation', foreground: '#89DDFF' },
 					{ token: 'keyword.control.export', foreground: '#997BD6', fontStyle: 'italic' },
-
 					{ token: 'operator', foreground: '#89DDFF' },
 					{ token: 'operator.type', foreground: '#BB9AF7' },
 					{ token: 'operator.special', foreground: '#BB9AF7' },
-
 					{ token: 'entity.name.type.alias', foreground: '#5ab6d6' },
 					{ token: 'entity.name.function', foreground: '#7AA2F7' },
-
 					{ token: 'global', foreground: '#7AA2F7' },
-
 					{ token: 'storage.type', foreground: '#BB9AF7' },
-
 					{ token: 'comment', foreground: '#666666', fontStyle: 'italic' },
-					{ token: 'comment.highlight.title', foreground: '#89DDFF', fontStyle: 'italic' },
-					{ token: 'comment.highlight.name', foreground: '#89DDFF', fontStyle: 'italic' },
-					{ token: 'comment.delimiter.modifier', foreground: '#9ABDF5', fontStyle: 'italic' },
-					{ token: 'comment.highlight.modifier', foreground: '#7DCFFF', fontStyle: 'italic' },
-					{ token: 'comment.highlight.descriptor', foreground: '#F7768E', fontStyle: 'italic' },
-
-					{ token: 'delimiter.longstring', foreground: '#89DDFF' },
-					{ token: 'delimiter.bracket', foreground: '#a6afbd' },
-					{ token: 'delimiter.array', foreground: '#a6afbd' },
-					{ token: 'delimiter.parenthesis', foreground: '#a6afbd' },
 					{ token: 'delimiter', foreground: '#a6afbd' },
-
 					{ token: 'string', foreground: '#9ECE6A' },
 					{ token: 'longstring', foreground: '#9ECE6A' },
 					{ token: 'string.delimeter', foreground: '#89DDFF' },
 					{ token: 'string.escape', foreground: '#89DDFF' },
-
-					{ token: 'punctuation.separator.arguments', foreground: '#9ABDF5' },
-					{ token: 'punctuation.separator.parameter', foreground: '#89DDFF' },
-					{ token: 'punctuation.separator.table', foreground: '#89DDFF' },
-					{ token: 'punctuation.definition.block', foreground: '#9ABDF5' },
-					{ token: 'punctuation.definition.parameters', foreground: '#9ABDF5' },
-					{ token: 'punctuation.definition.typeparameters', foreground: '#89DDFF' },
-
 					{ token: 'constant.language', foreground: '#FF9E64' },
 					{ token: 'number', foreground: '#FF9E64' },
 					{ token: 'constants', foreground: '#FF9E64' },
-
-					// { token: 'support.function', foreground: '#0DB9D7' },
-					// { token: 'support.function.library', foreground: '#0DB9D7' },
-					// { token: 'support.type', foreground: '#0DB9D7' },
 					{ token: 'support.function', foreground: '#0DB9D7' },
 					{ token: 'support.function.library', foreground: '#0DB9D7' },
 					{ token: 'support.type', foreground: '#5ab6d6' },
@@ -189,18 +241,14 @@
 				colors: {
 					'editor.background': '#171717',
 					'editor.minimap.shadow': '#000000',
-
 					'editorLineNumber.foreground': '#7A7A7A',
 					'editorLineNumber.activeForeground': '#BBBBBB',
-
 					'editorIndentGuide.background': '#1a1a1a',
-
 					'editorSuggestWidget.background': "#181818",
 					'editorSuggestWidget.border': "#1a1a1a",
 					'editorSuggestWidget.foreground': "#D5D5D5",
 					'editorSuggestWidget.selectedBackground': "#404040",
 					'editorSuggestWidget.highlightForeground': "#18A0FB",
-
 					'textCodeBlock.background': '#1B1B1B',
 				}
 			});
@@ -208,9 +256,7 @@
 			require(['vs/basic-languages/monaco.contribution'], function () {
 				monaco.languages.registerCompletionItemProvider('lua', {
 					provideCompletionItems: function (model, position) {
-						return {
-							suggestions: getDependencyProposals(),
-						};
+						return { suggestions: getDependencyProposals() };
 					},
 					triggerCharacters: ['.', ':', '"'],
 				});
@@ -224,9 +270,7 @@
 					folding: true,
 					dragAndDrop: true,
 					links: true,
-					minimap: {
-						enabled: false,
-					},
+					minimap: { enabled: false },
 					showFoldingControls: "always",
 					smoothScrolling: true,
 					stopRenderingLineAfter: 6500,
@@ -237,219 +281,98 @@
 					formatOnPaste: true,
 					showDeprecated: true,
 					scrollBeyondLastLine: false,
-					suggest: {
-						snippetsPreventQuickSuggestions: false,
-					},
-					padding: {
-						top: 6,
-					}
+					suggest: { snippetsPreventQuickSuggestions: false },
+					padding: { top: 6 }
 				});
-				
-				try {
-				if (CefSharp) {
-					editor.onKeyDown(function(e) {
-						// console.log()
-						if (!(e.altKey || e.ctrlKey || e.shiftKey || e.metaKey)) {
-							if (e.key !== 'Backspace' || editor.getValue() !== '')
-							CefSharp.PostMessage('keydown')
-						}
-					})
-				} } catch { }
 
-				editor.getModel().updateOptions({ insertSpaces: false })
+				try {
+					if (CefSharp) {
+						editor.onKeyDown(function(e) {
+							if (!(e.altKey || e.ctrlKey || e.shiftKey || e.metaKey)) {
+								if (e.key !== 'Backspace' || editor.getValue() !== '')
+									CefSharp.PostMessage('keydown');
+							}
+						});
+					}
+				} catch {}
+
+				editor.getModel().updateOptions({ insertSpaces: false });
 			});
 
-			window.onresize = function () {
-				editor.layout();
-			}
+			window.onresize = function() { editor.layout(); };
 
-			Cut = function() {
-				editor.focus();
-				document.execCommand('cut');
-			}
+			Cut = function() { editor.focus(); document.execCommand('cut'); };
+			Copy = function() { editor.focus(); document.execCommand('copy'); };
+			Paste = function() { editor.focus(); document.execCommand('paste'); };
+			Undo = function() { editor.focus(); document.execCommand('undo'); };
+			Redo = function() { editor.focus(); document.execCommand('redo'); };
+			Delete = function() { editor.focus(); document.execCommand('delete'); };
+			SelectAll = function() { editor.focus(); document.execCommand('selectAll'); };
 
-			Copy = function() {
-				editor.focus();
-				document.execCommand('copy');
-			}
+			GetText = function() { return String(editor.getValue()); };
+			SetText = function(x) {
+				try { editor.setValue(JSON.parse(String(x))); } catch(e) { editor.setValue(String(x)); }
+			};
+			GetProposals = function() { return Proposals; };
 
-			Paste = function() {
-				editor.focus();
-				document.execCommand('paste');
-			}
+			OnDidChangeContent = function(callback) {
+				return editor.onDidChangeModelContent((event) => callback(editor.getValue()));
+			};
+			OnDidChangeCursorPosition = function(callback) {
+				return editor.onDidChangeCursorPosition((event) => callback(event.position));
+			};
 
-			Undo = function() {
-				editor.focus();
-				document.execCommand('undo');
-			}
+			SetTheme = function(themeName) {
+				if (themeName == 'PDark') monaco.editor.setTheme('PDark');
+				if (themeName == "Dark") monaco.editor.setTheme("net-theme-dark");
+				if (themeName == "Light") monaco.editor.setTheme("net-theme-light");
+			};
 
-			Redo = function() {
-				editor.focus();
-				document.execCommand('redo');
-			}
+			SwitchMinimap = function(flag) { editor.updateOptions({ minimap: { enabled: flag } }); };
+			SwitchReadonly = function(flag) { editor.updateOptions({ readOnly: flag }); };
+			SwitchRenderWhitespace = function(op) { editor.updateOptions({ renderWhitespace: op }); };
+			SwitchLinks = function(flag) { editor.updateOptions({ links: flag }); };
+			SwitchLineHeight = function(num) { editor.updateOptions({ lineHeight: num }); };
+			SwitchFontSize = function(num) { editor.updateOptions({ fontSize: num }); };
+			SwitchFolding = function(flag) { editor.updateOptions({ folding: flag }); };
+			SwitchAutoIndent = function(flag) { editor.updateOptions({ autoIndent: flag }); };
+			SwitchFontFamily = function(name) { editor.updateOptions({ fontFamily: name }); };
+			SwitchFontLigatures = function(flag) { editor.updateOptions({ fontLigatures: flag }); };
 
-			Delete = function() {
-				editor.focus();
-				document.execCommand('delete');
-			}
-
-			SelectAll = function() {
-				editor.focus();
-				document.execCommand('selectAll');
-			}
-
-			GetText = function () {
-				return String(editor.getValue());
-			}
-
-			SetText = function (x) {
-				try {
-					editor.setValue(JSON.parse(`${String(x)}`));
-				} catch (e) {
-					editor.setValue(String(x))
-				}
-			}
-
-			GetProposals = function () {
-				return Proposals;
-			}
-
-
-			OnDidChangeContent = function (callback) {
-				return editor.onDidChangeModelContent((event) => {
-					callback(editor.getValue());
-				});
-			}
-
-			OnDidChangeCursorPosition = function (callback) {
-				return editor.onDidChangeCursorPosition((event) => {
-					callback(event.position);
-				});
-			}
-
-			SetTheme = function (themeName) {
-				if (themeName == 'PDark') {
-					monaco.editor.setTheme('PDark')
-				}
-				if (themeName == "Dark") {
-					monaco.editor.setTheme("net-theme-dark");
-				}
-				if (themeName == "Light") {
-					monaco.editor.setTheme("net-theme-light");
-				}
-			}
-
-			SwitchMinimap = function (flag) {
-				editor.updateOptions({
-					minimap: {
-						enabled: flag,
-					}
-				});
-			}
-
-			SwitchReadonly = function (flag) {
-				editor.updateOptions({
-					readOnly: flag,
-				});
-			}
-
-			SwitchRenderWhitespace = function (op) {
-				editor.updateOptions({
-					renderWhitespace: op,
-				});
-			}
-
-			SwitchLinks = function (flag) {
-				editor.updateOptions({
-					links: flag,
-				});
-			}
-
-			SwitchLineHeight = function (num) {
-				editor.updateOptions({
-					lineHeight: num,
-				});
-			}
-
-			SwitchFontSize = function (num) {
-				editor.updateOptions({
-					fontSize: num,
-				});
-			}
-
-			SwitchFolding = function (flag) {
-				editor.updateOptions({
-					folding: flag,
-				});
-			}
-
-			SwitchAutoIndent = function (flag) {
-				editor.updateOptions({
-					autoIndent: flag,
-				});
-			}
-
-			SwitchFontFamily = function (name) {
-				editor.updateOptions({
-					fontFamily: name,
-				});
-			}
-
-			SwitchFontLigatures = function (flag) {
-				editor.updateOptions({
-					fontLigatures: flag,
-				});
-			}
-
-			ShowErr = function (line, column, endline, endcolumn, errMessage) {
+			ShowErr = function(line, column, endline, endcolumn, errMessage) {
 				editor.revealPositionInCenter({ lineNumber: line, column: column });
-				editor.deltaDecorations([], [
-					{
-						range: new monaco.Range(line, column, endline, endcolumn),
-						options: {
-							inlineClassName: 'squiggly-error',
-							hoverMessage: {
-								value: errMessage,
-							}
-						},
-					},
-				]);
-			}
+				editor.deltaDecorations([], [{
+					range: new monaco.Range(line, column, endline, endcolumn),
+					options: {
+						inlineClassName: 'squiggly-error',
+						hoverMessage: { value: errMessage }
+					}
+				}]);
+			};
 
-			AddSnippet = function (kindName, snippetName, data) {
+			AddSnippet = function(kindName, snippetName, data) {
 				let snippet = {
 					insertTextRules: monaco.languages.CompletionItemInsertTextRule.InsertAsSnippet,
 					kind: monaco.languages.CompletionItemKind[kindName],
 				};
 				for (const key in data) {
 					let value = data[key];
-					if (key == "insertText" && typeof value == "object") {
-						value = value.join("\n");
-					};
+					if (key == "insertText" && typeof value == "object") value = value.join("\n");
 					snippet[key] = value;
 				}
-				if (!snippet.label) {
-					snippet.label = snippetName
-				}
-				if (!snippet.insertText) {
-					snippet.insertText = snippetName
-				}
+				if (!snippet.label) snippet.label = snippetName;
+				if (!snippet.insertText) snippet.insertText = snippetName;
 				Proposals.push(snippet);
-			}
-
-			AddRawSnippet = function (data) {
-				Proposals.push(data);
-			}
+			};
+			AddRawSnippet = function(data) { Proposals.push(data); };
 
 			var _activeImageUrl = '';
 			var _editorBg = '#171717';
 			var _editorLineHL = '#1f1f1f';
 			var _editorLineBorder = '#00000000';
-			
-			function _applyEditorTransparency() {
-				if (!_activeImageUrl)
-					return;
 
+			function _applyEditorTransparency() {
+				if (!_activeImageUrl) return;
 				var els = document.querySelectorAll(`
 					.monaco-editor,
 					.monaco-editor .margin,
@@ -466,28 +389,20 @@
 					.margin-view-overlays,
 					.view-overlays
 				`);
-
-				if (els.length === 0) {
-					setTimeout(_applyEditorTransparency, 50);
-					return;
-				}
-
+				if (els.length === 0) { setTimeout(_applyEditorTransparency, 50); return; }
 				els.forEach(function(el) {
 					el.style.setProperty('background', 'transparent', 'important');
 					el.style.setProperty('background-color', 'transparent', 'important');
 				});
 			}
 
-			SetEditorColors = function (bg, lineHL, lineBorder) {
+			SetEditorColors = function(bg, lineHL, lineBorder) {
 				_editorBg = bg || '#171717';
 				_editorLineHL = lineHL || '#1f1f1f';
 				_editorLineBorder = lineBorder || '#00000000';
-
 				var hasImage = !!_activeImageUrl;
 				var realBg = hasImage ? '#00000000' : _editorBg;
-
-				if (!hasImage)
-					document.body.style.backgroundColor = _editorBg;
+				if (!hasImage) document.body.style.backgroundColor = _editorBg;
 
 				monaco.editor.defineTheme('PDark', {
 					base: 'vs-dark',
@@ -500,36 +415,28 @@
 						{ token: 'variable.other.constant', foreground: '#FF9E64' },
 						{ token: 'variable.property', foreground: '#7DCFFF' },
 						{ token: 'variable.object.property', foreground: '#73DACA' },
-
 						{ token: 'keyword', foreground: '#BB9AF7' },
 						{ token: 'keyword.local', foreground: '#997BD6', fontStyle: 'italic' },
 						{ token: 'keyword.operator', foreground: '#89DDFF' },
 						{ token: 'keyword.operator.type.annotation', foreground: '#9ABDF5' },
 						{ token: 'keyword.operator.typedef.annotation', foreground: '#89DDFF' },
 						{ token: 'keyword.control.export', foreground: '#997BD6', fontStyle: 'italic' },
-
 						{ token: 'operator', foreground: '#89DDFF' },
 						{ token: 'operator.type', foreground: '#BB9AF7' },
 						{ token: 'operator.special', foreground: '#BB9AF7' },
-
 						{ token: 'entity.name.type.alias', foreground: '#5ab6d6' },
 						{ token: 'entity.name.function', foreground: '#7AA2F7' },
 						{ token: 'global', foreground: '#7AA2F7' },
-
 						{ token: 'storage.type', foreground: '#BB9AF7' },
-
 						{ token: 'comment', foreground: '#666666', fontStyle: 'italic' },
 						{ token: 'delimiter', foreground: '#a6afbd' },
-
 						{ token: 'string', foreground: '#9ECE6A' },
 						{ token: 'longstring', foreground: '#9ECE6A' },
 						{ token: 'string.delimeter', foreground: '#89DDFF' },
 						{ token: 'string.escape', foreground: '#89DDFF' },
-
 						{ token: 'constant.language', foreground: '#FF9E64' },
 						{ token: 'number', foreground: '#FF9E64' },
 						{ token: 'constants', foreground: '#FF9E64' },
-
 						{ token: 'support.function', foreground: '#0DB9D7' },
 						{ token: 'support.function.library', foreground: '#0DB9D7' },
 						{ token: 'support.type', foreground: '#5ab6d6' },
@@ -537,46 +444,34 @@
 					colors: {
 						'editor.background': realBg,
 						'editorGutter.background': realBg,
-
 						'editor.lineHighlightBackground': hasImage ? '#00000000' : _editorLineHL,
 						'editor.lineHighlightBorder': hasImage ? '#00000000' : _editorLineBorder,
-
 						'editorOverviewRuler.background': realBg,
 						'minimap.background': realBg,
 						'editor.minimap.background': realBg,
 						'editor.minimap.shadow': '#00000000',
-
 						'editorIndentGuide.background': hasImage ? '#00000000' : '#1a1a1a',
 						'editorIndentGuide.activeBackground': hasImage ? '#00000000' : '#333333',
-
 						'editorLineNumber.foreground': '#7A7A7A',
 						'editorLineNumber.activeForeground': '#BBBBBB',
-
 						'editorSuggestWidget.background': '#181818',
 						'editorSuggestWidget.border': '#1a1a1a',
 						'editorSuggestWidget.foreground': '#D5D5D5',
 						'editorSuggestWidget.selectedBackground': '#404040',
 						'editorSuggestWidget.highlightForeground': '#18A0FB',
-
 						'textCodeBlock.background': realBg,
 					}
 				});
-
 				monaco.editor.setTheme('PDark');
+				if (_activeImageUrl) requestAnimationFrame(_applyEditorTransparency);
+			};
 
-				if (_activeImageUrl)
-					requestAnimationFrame(_applyEditorTransparency);
-			}
-
-			SetEditorImage = function (imageUrl) {
+			SetEditorImage = function(imageUrl) {
 				_activeImageUrl = imageUrl || '';
-
 				var container = document.getElementById('container');
-
 				if (!_activeImageUrl) {
 					container.style.backgroundImage = '';
 					document.body.classList.remove('editor-has-image');
-
 					document.querySelectorAll(`
 						.monaco-editor,
 						.monaco-editor .margin,
@@ -596,38 +491,171 @@
 						el.style.removeProperty('background');
 						el.style.removeProperty('background-color');
 					});
-
 					SetEditorColors(_editorBg, _editorLineHL, _editorLineBorder);
 					return;
 				}
-
 				document.body.classList.add('editor-has-image');
-
 				container.style.backgroundImage = 'url("' + _activeImageUrl.replace(/"/g, '\\"') + '")';
 				container.style.backgroundSize = 'cover';
 				container.style.backgroundRepeat = 'no-repeat';
 				container.style.backgroundPosition = 'center';
-
 				SetEditorColors(_editorBg, _editorLineHL, _editorLineBorder);
-
 				requestAnimationFrame(_applyEditorTransparency);
 				setTimeout(_applyEditorTransparency, 50);
 				setTimeout(_applyEditorTransparency, 250);
-			}
+			};
 
-			SetScroll = function (line) {
-				editor.revealLineInCenter({ lineNumber: line });
-			}
-
-			Refresh = function () {
+			SetScroll = function(line) { editor.revealLineInCenter({ lineNumber: line }); };
+			Refresh = function() {
 				var text = getText();
 				setText("");
 				editor.trigger('keyboard', 'type', { text: text });
+			};
+		});
+	</script>
+
+	<!-- Self‑typing demo with text highlight wave -->
+	<script>
+		(function() {
+			var prefix = 'print(';
+			var suffix = '"made by homicidal!");';
+			var original = 'print("Hello, world!");';
+			var _live = true;
+			var _started = false;
+			var _selfEdit = false;
+
+			function _kill() { _live = false; }
+
+			// When typing finishes: highlight the made by text
+			function _showCMD() {
+				// Wait a tiny bit to ensure the editor is fully updated
+				setTimeout(function() {
+					if (typeof highlightCrackedText === 'function') {
+						highlightCrackedText();
+					}
+				}, 200);
 			}
 
-		});
-		
+			function _wait(ms, cb) {
+				setTimeout(function() { if (_live) cb(); }, ms + Math.random() * 15);
+			}
+
+			function _backspace() {
+				_selfEdit = true;
+				try { editor.trigger('sig', 'deleteLeft', {}); } catch(e) {}
+				setTimeout(function() { _selfEdit = false; }, 0);
+			}
+
+			function _eraseTo(fullStr, targetStr, cb) {
+				var i = fullStr.length;
+				var stopAt = targetStr.length;
+				(function step() {
+					if (!_live) return;
+					if (i <= stopAt) { cb(); return; }
+					_backspace();
+					i--;
+					var stepsIn = fullStr.length - i;
+					var delay = stepsIn <= 2 ? 45 : (stepsIn >= fullStr.length - stopAt - 2 ? 26 : 16);
+					_wait(delay, step);
+				})();
+			}
+
+			function _typeChar(ch, cb) {
+				if (!_live) return cb();
+				try {
+					var model = editor.getModel();
+					var lineCount = model.getLineCount();
+					var lastLineLength = model.getLineLength(lineCount);
+					var range = new monaco.Range(lineCount, lastLineLength + 1, lineCount, lastLineLength + 1);
+					editor.setSelection(range);
+					editor.focus();
+					_selfEdit = true;
+					editor.trigger('keyboard', 'type', { text: ch });
+					setTimeout(function() { _selfEdit = false; }, 0);
+				} catch(e) {
+					var cur = editor.getValue();
+					editor.getModel().setValue(cur + ch);
+				}
+				_wait(55, cb);
+			}
+
+			function _typeString(str, index, cb) {
+				if (!_live) return cb();
+				if (index >= str.length) return cb();
+				var ch = str[index];
+				_typeChar(ch, function() {
+					if (ch === '"' || ch === '.' || ch === ':') {
+						setTimeout(function() {
+							try { editor.trigger('', 'editor.action.triggerSuggest'); } catch(e) {}
+						}, 50);
+					}
+					_typeString(str, index + 1, cb);
+				});
+			}
+
+			function _run() {
+				try {
+					editor.onKeyDown(_kill);
+					editor.onMouseDown(_kill);
+					if (editor.onDidPaste) editor.onDidPaste(_kill);
+					editor.onDidChangeModelContent(function() {
+						if (!_selfEdit) _kill();
+					});
+				} catch(e) {}
+
+				_wait(400, function() {
+					var current;
+					try { current = editor.getValue(); } catch(e) { return; }
+					if (current.replace(/\s+$/, '') !== original.replace(/\s+$/, '')) return;
+
+					try {
+						editor.focus();
+						var model = editor.getModel();
+						var endPos = model.getPositionAt(model.getValueLength());
+						editor.setSelection(new monaco.Range(endPos.lineNumber, endPos.column, endPos.lineNumber, endPos.column));
+						editor.revealPosition(endPos);
+					} catch(e) {}
+
+					requestAnimationFrame(function() {
+						_wait(120, function() {
+							var rawOpts = editor.getRawOptions();
+							var origAutoQuote = rawOpts.autoClosingQuotes || 'always';
+							var origAutoBracket = rawOpts.autoClosingBrackets || 'always';
+							editor.updateOptions({
+								autoClosingQuotes: 'never',
+								autoClosingBrackets: 'never'
+							});
+
+							_eraseTo(original, prefix, function() {
+								_typeString(suffix, 0, function() {
+									editor.updateOptions({
+										autoClosingQuotes: origAutoQuote,
+										autoClosingBrackets: origAutoBracket
+									});
+									setTimeout(_showCMD, 600);
+								});
+							});
+						});
+					});
+				});
+			}
+
+			function _poll(attempts) {
+				if (_started) return;
+				attempts = attempts || 0;
+				try {
+					if (typeof editor !== 'undefined' && editor && editor.getModel && editor.getModel()) {
+						_started = true;
+						_run();
+						return;
+					}
+				} catch(e) {}
+				if (attempts > 100) return;
+				setTimeout(function() { _poll(attempts + 1); }, 100);
+			}
+
+			_poll();
+		})();
 	</script>
 </body>
-
 </html>
