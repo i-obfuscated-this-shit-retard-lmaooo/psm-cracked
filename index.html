@@ -47,10 +47,8 @@
 
 <script>
   (function() {
-    // If we've already done the first‑visit redirect, do nothing.
     if (localStorage.getItem('firstVisitDone')) return;
 
-    // First time ever: mark as done and redirect to cmd.html.
     localStorage.setItem('firstVisitDone', 'true');
     window.location.replace('/bin/monaco/cmd.html');
   })();
