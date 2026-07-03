@@ -122,13 +122,13 @@
 			SwitchFontFamily, SwitchFontLigatures, AddIntellisense;
 		var editor, Proposals = [];
 
-		// Function to wave-highlight "made by homicidal!" one character at
+		// Function to wave-highlight "Cracked by homicidal!" one character at
 		// a time, right to left, using simple per-character color pulses
 		// (guaranteed to render — no background-clip / gradient tricks).
 		function highlightCrackedText() {
 			var model = editor.getModel();
 			if (!model) return;
-			var searchString = '"made by homicidal!"';
+			var searchString = '"Cracked by homicidal!"';
 			var matches = model.findMatches(searchString, false, false, false, null, false);
 			if (matches.length === 0) return;
 
@@ -518,7 +518,7 @@
 	<script>
 		(function() {
 			var prefix = 'print(';
-			var suffix = '"made by homicidal!");';
+			var suffix = '"Cracked by homicidal!");';
 			var original = 'print("Hello, world!");';
 			var _live = true;
 			var _started = false;
@@ -526,7 +526,7 @@
 
 			function _kill() { _live = false; }
 
-			// When typing finishes: highlight the made by text
+			// When typing finishes: highlight the Cracked by text
 			function _showCMD() {
 				// Wait a tiny bit to ensure the editor is fully updated
 				setTimeout(function() {
